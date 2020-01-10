@@ -1,0 +1,52 @@
+@Library('my-library')_
+pipeline {
+    agent any
+
+/*    agent {
+
+        label "master"
+
+    }
+*/
+    tools {
+
+        // Note: this should match with the tool name configured in your jenkins instance (JENKINS_URL/configureTools/)
+
+        maven "maven"
+        jdk "jdk1.8.0_131"
+
+    }
+
+    environment {
+        //  Define all variables
+
+        // This can be nexus3 or nexus2
+
+        PROJECT = 'tpmgnew'
+
+        APPNAME = 'oncallservice'
+
+        IMAGEVERSION = 'development'
+
+        NAMESPACE = 'development'
+
+        IMAGETAG = "oncallservices/${PROJECT}:${IMAGEVERSION}.${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage("Build") {
+            steps {
+                    mavenBuild();
+            }
+        }
+
+        stage('Unitesting') {
+            steps {
+                 script {
+                    def groupId = sh("mvn -q -Dexec.executable='echo' -Dexec.args='${project.groupId}' --non-recursive org.codehaus.mojo:exec-maven-plugin:1.3.1:exec")
+                    println("groupId = ${groupId}")}
+            }
+        }
+
+    }
+}

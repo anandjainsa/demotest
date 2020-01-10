@@ -1,0 +1,107 @@
+@Library('my-library')_
+pipeline {
+    agent any
+
+/*    agent {
+
+        label "master"
+
+    }
+*/
+    tools {
+
+        // Note: this should match with the tool name configured in your jenkins instance (JENKINS_URL/configureTools/)
+
+        maven "maven"
+        jdk "jdk1.8.0_131"
+
+    }
+
+    environment {
+        //  Define all variables
+
+        // This can be nexus3 or nexus2
+
+        NEXUS_VERSION = "nexus3"
+
+        // This can be http or https
+
+        NEXUS_PROTOCOL = "https"
+
+        // Where your Nexus is running
+
+        NEXUS_URL = "artifactory.ttgtpmg.net"
+
+        // Repository where we will upload the artifact
+
+        NEXUS_REPOSITORY = "nexus_repo"
+
+        // Jenkins credential id to authenticate to Nexus OSS
+
+        NEXUS_CREDENTIAL_ID = "nexus"
+
+        PROJECT = 'tpmgnew'
+
+        APPNAME = 'oncallservice'
+
+        IMAGEVERSION = 'development'
+
+        NAMESPACE = 'development'
+
+        IMAGETAG = "oncallservices/${PROJECT}:${IMAGEVERSION}.${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage("Build") {
+            steps {
+                    mavenBuild();
+            }
+        }
+
+        stage('Unitesting') {
+            steps {
+                 sonarRun()
+            }
+        }
+
+        stage("Publishing Artifacts") {
+            steps {
+                publisToNexus()
+            }
+        }
+
+        stage('Building Container Image') {
+            steps {
+                dockerBuild("${IMAGETAG}")
+            }
+        }
+
+        stage('Pushing Image to registry') {
+            steps {
+                dockerPush("${IMAGETAG}")
+             }
+        }
+
+        stage("Deploying Application to Dev") {
+          when {
+    	  expression {
+               return env.BRANCH_NAME = 'development';
+               }
+             }
+            steps {
+                kubeDeploy("${NAMESPACE}", "${APPNAME}", "${PROJECT}", "${IMAGEVERSION}", "${IMAGETAG}")
+            }
+        }
+    
+        stage("Deploying Application to QA") {
+          when {
+    	  expression {
+               return env.BRANCH_NAME = 'qa';
+               }
+             }
+            steps {
+                kubeDeploy("${NAMESPACE}", "${APPNAME}", "${PROJECT}", "${IMAGEVERSION}", "${IMAGETAG}")
+            }
+        }
+    }
+}
